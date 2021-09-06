@@ -124,6 +124,7 @@ namespace ZBC_OOP_Queue
                         var pos = Console.GetCursorPosition();
 
                         Console.SetCursorPosition(pos.Left + 1, pos.Top);
+                        
                     } 
                     else
                     {
@@ -133,7 +134,6 @@ namespace ZBC_OOP_Queue
             }
 
             Console.ForegroundColor = ConsoleColor.Gray;
-
         }
 
         /// <summary>

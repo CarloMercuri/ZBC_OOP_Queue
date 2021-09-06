@@ -1,43 +1,188 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace ZBC_OOP_Queue
 {
-    public static class GUI
+    public class GUI
     {
+        // Console size hack, makes it so you cannot resize it
+
+        private const int MF_BYCOMMAND = 0x00000000;
+        public const int SC_CLOSE = 0xF060;
+        public const int SC_MINIMIZE = 0xF020;
+        public const int SC_MAXIMIZE = 0xF030;
+        public const int SC_SIZE = 0xF000;
+
+        [DllImport("user32.dll")]
+        public static extern int DeleteMenu(IntPtr hMenu, int nPosition, int wFlags);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+        [DllImport("kernel32.dll", ExactSpelling = true)]
+        private static extern IntPtr GetConsoleWindow();
+
         // Colors
-        private static ConsoleColor textColor = ConsoleColor.Yellow;
-        private static ConsoleColor columnsColor = ConsoleColor.Green;
-        private static ConsoleColor backColor = ConsoleColor.Gray;
+        private ConsoleColor textColor = ConsoleColor.Yellow;
+        private ConsoleColor columnsColor = ConsoleColor.Green;
+        private ConsoleColor backColor = ConsoleColor.Gray;
 
         // Stickmen stuff
-        private static int StickmenSeparation = 9;
-        private static int StickmenStartXPos = 110;
-        private static int ArrowX { get; set; }
-        private static int ArrowY = 30;
+        private int StickmenSeparation = 9;
+        private int StickmenStartXPos = 110;
+        private int ArrowX { get; set; }
+        private int ArrowY = 30;
 
         // Other
+        static string LastKeyInput;
 
-        private static int WarningAreaY = 28;
+        private int WarningAreaY = 28;
+
+        private QueueControl _control;
 
 
 
+        private bool isRunning;
 
         /// <summary>
         /// Gets the UI started with the basic drawing
         /// </summary>
-        public static void InitializeGUI()
+        public void InitializeGUI()
         {
+
+            // Size and lock the console. No scrolling, no resizing
+            Console.SetWindowSize(140, 40);
+            Console.SetBufferSize(140, 40);
+
+            Console.Title = "Queue";
+            LockConsole();
+
+            _control = new QueueControl();
+            isRunning = true;
+            UpdateLastKeyInput();
             CreateBaseGUI();
+
+
+            while (isRunning)
+            {
+                GetUserInput();
+            }
         }
+
+        /// <summary>
+        /// Works with user input
+        /// </summary>
+        private void GetUserInput()
+        {
+            ConsoleKeyInfo key = Console.ReadKey();
+
+            ClearArrow();
+
+            switch (key.Key)
+            {
+                case ConsoleKey.D1:  // Add person
+                    LastKeyInput = "1";
+
+                    if (_control.GetQueueCount() > 12) // max that can fit in the screen
+                    {
+                        ShowWarning("Too many in queue already!");
+                        break;
+                    }
+
+                    _control.QueuePerson(new Person(_control.GetRandomName()));
+                    PrintQueueVisual();
+                    break;
+
+                case ConsoleKey.D2:  // Remove first
+                    LastKeyInput = "2";
+                    Person p = _control.GetFirstInQueue();
+
+                    if (p != null)
+                    {
+                        ShowWarning($"Dequeued {p.Name}");
+                    }
+
+                    PrintQueueVisual();
+
+                    break;
+
+                case ConsoleKey.D3:  // Count
+                    LastKeyInput = "3";
+                    ShowWarning($"There are {_control.GetQueueCount()}");
+                    break;
+
+                case ConsoleKey.D4:   // Find oldest and youngest
+                    LastKeyInput = "4";
+                    Person oldest = _control.FindOldestInQueue();
+                    Person youngest = _control.FindYoungestInQueue();
+
+                    ShowWarning($"The oldest is {oldest.Name}, {oldest.Age}.\n\r  The youngest is {youngest.Name}, {youngest.Age}");
+
+                    break;
+
+                case ConsoleKey.D5: // Search
+                    LastKeyInput = "5";
+
+                    SearchFunction();
+
+                    break;
+
+                case ConsoleKey.D6:  // Quit
+                    LastKeyInput = "6";
+                    isRunning = false;
+                    break;
+            }
+
+
+            UpdateLastKeyInput();
+
+            Console.SetCursorPosition(Console.WindowWidth - 1, 0);
+
+
+
+        }
+
+        /// <summary>
+        /// Start the search function
+        /// </summary>
+        private void SearchFunction()
+        {
+            ShowWarning("Search for people in queue with the name: ");
+
+            string name = Console.ReadLine();
+
+            int index = _control.FindPersonInQueue(name);
+
+            if (index == -1)
+            {
+                ShowWarning($"Person called {name} not found!");
+            }
+            else
+            {
+                ShowWarning($"Found {name}!");
+                DrawArrowOnStickman(index);
+            }
+        }
+
+        /// <summary>
+        /// Updates the last key input
+        /// </summary>
+        private void UpdateLastKeyInput()
+        {
+            Console.SetCursorPosition(2, 24);
+            Console.Write($"Last input: {LastKeyInput}");
+
+        }
+
 
         /// <summary>
         /// Creates the Base GUI
         /// </summary>
-        private static void CreateBaseGUI()
+        private void CreateBaseGUI()
         {
             PrintTitleLogo();
 
@@ -49,7 +194,7 @@ namespace ZBC_OOP_Queue
         /// <summary>
         /// Draws the stickman figures in queue
         /// </summary>
-        public static void PrintQueueVisual()
+        public void PrintQueueVisual()
         {
             // Clear first
             ClearQueueVisual();
@@ -58,7 +203,7 @@ namespace ZBC_OOP_Queue
 
             // Prints a stickman for each person in queue.
             // Goes from right to left, hence why we are counting down
-            foreach (Person p in QueueControl.MainQueue)
+            foreach (Person p in _control.GetQueue())
             {
                 PrintStickFigure(p, xPos, 32, p.Color);
                 xPos -= StickmenSeparation;
@@ -69,7 +214,7 @@ namespace ZBC_OOP_Queue
         /// <summary>
         /// Clears the stickman queue
         /// </summary>
-        public static void ClearQueueVisual()
+        public void ClearQueueVisual()
         {
             for (int i = 0; i < 8; i++)
             {
@@ -86,7 +231,7 @@ namespace ZBC_OOP_Queue
         /// <param name="x"></param>
         /// <param name="y"></param>
         /// <param name="color"></param>
-        public static void PrintStickFigure(Person p, int x, int y, ConsoleColor color)
+        public void PrintStickFigure(Person p, int x, int y, ConsoleColor color)
         {
             string name = p.Name;
 
@@ -116,7 +261,7 @@ namespace ZBC_OOP_Queue
         /// <summary>
         /// Clears the area to make it ready for the next message
         /// </summary>
-        public static void ClearWarningArea()
+        public void ClearWarningArea()
         {
             for (int i = 0; i < 4; i++)
             {
@@ -130,7 +275,7 @@ namespace ZBC_OOP_Queue
         /// Displays a text message at the location
         /// </summary>
         /// <param name="text"></param>
-        public static void ShowWarning(string text)
+        public void ShowWarning(string text)
         {
             // Clear first
             ClearWarningArea();
@@ -139,7 +284,7 @@ namespace ZBC_OOP_Queue
             Console.Write(text);
         }
 
-        public static void ClearArrow()
+        public void ClearArrow()
         {
             // We know where it is
             Console.SetCursorPosition(ArrowX, ArrowY);
@@ -148,7 +293,7 @@ namespace ZBC_OOP_Queue
             Console.Write("         ");
         }
 
-        public static void DrawArrowOnStickman(int index)
+        public void DrawArrowOnStickman(int index)
         {
             ClearArrow();
 
@@ -170,7 +315,7 @@ namespace ZBC_OOP_Queue
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
-        public static void PrintDoor(int x, int y)
+        public void PrintDoor(int x, int y)
         {
             string[] array = new string[]
             {
@@ -192,7 +337,7 @@ namespace ZBC_OOP_Queue
         /// <summary>
         /// Prints the main menu
         /// </summary>
-        public static void PrintMenu()
+        public void PrintMenu()
         {
             string[] array = new string[]
             {
@@ -211,7 +356,7 @@ namespace ZBC_OOP_Queue
         /// <summary>
         /// Prints the main LUX sign
         /// </summary>
-        private static void PrintTitleLogo()
+        private void PrintTitleLogo()
         {
             Console.ForegroundColor = backColor;
 
@@ -248,7 +393,7 @@ namespace ZBC_OOP_Queue
 
         }
 
-        private static void PrintNightclub(int x, int y, ConsoleColor color)
+        private void PrintNightclub(int x, int y, ConsoleColor color)
         {
             string[] array = new string[]
             {
@@ -284,7 +429,7 @@ namespace ZBC_OOP_Queue
             }
         }
 
-        private static void PrintLux()
+        private void PrintLux()
         {
             string[] textArray = new string[]
             {
@@ -327,7 +472,10 @@ namespace ZBC_OOP_Queue
             }
         }
 
-        private static void PrintColumns()
+        /// <summary>
+        /// Prints the side columns
+        /// </summary>
+        private void PrintColumns()
         {
             string[] array = new string[]
             {
@@ -356,7 +504,7 @@ namespace ZBC_OOP_Queue
         /// <param name="y"></param>
         /// <param name="array"></param>
         /// <param name="color"></param>
-        private static void PrintSingleColumn(int x, int y, string[] array, ConsoleColor color)
+        private void PrintSingleColumn(int x, int y, string[] array, ConsoleColor color)
         {
 
             Console.ForegroundColor = color;
@@ -380,6 +528,21 @@ namespace ZBC_OOP_Queue
                         Console.Write(array[i][j]);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Makes it so you cannot resize or maximize it
+        /// </summary>
+        private static void LockConsole()
+        {
+            IntPtr handle = GetConsoleWindow();
+            IntPtr sysMenu = GetSystemMenu(handle, false);
+
+            if (handle != IntPtr.Zero)
+            {
+                DeleteMenu(sysMenu, SC_MAXIMIZE, MF_BYCOMMAND);
+                DeleteMenu(sysMenu, SC_SIZE, MF_BYCOMMAND);
             }
         }
     }
