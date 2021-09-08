@@ -255,7 +255,7 @@ namespace ZBC_OOP_Queue
                 $"  {p.Age} "
             };
 
-            ConsoleTools.PrintArray(array, x, y, null, color);
+            PrintArray(array, x, y, null, color);
         }
 
         /// <summary>
@@ -306,7 +306,7 @@ namespace ZBC_OOP_Queue
                 @"\/",
             };
 
-            ConsoleTools.PrintArray(array, ArrowX, ArrowY, null, ConsoleColor.White);
+            PrintArray(array, ArrowX, ArrowY, null, ConsoleColor.White);
 
         }
 
@@ -331,7 +331,7 @@ namespace ZBC_OOP_Queue
                 @"|__________|",
             };
 
-            ConsoleTools.PrintArray(array, x, y, null, ConsoleColor.White);
+            PrintArray(array, x, y, null, ConsoleColor.White);
         }
 
         /// <summary>
@@ -349,7 +349,7 @@ namespace ZBC_OOP_Queue
                 @"6 - Exit program",
             };
 
-            ConsoleTools.PrintArray(array, 2, 16, null, ConsoleColor.White);
+            PrintArray(array, 2, 16, null, ConsoleColor.White);
 
         }
 
@@ -529,6 +529,46 @@ namespace ZBC_OOP_Queue
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Prints the given string array to the console in the specified location, skipping over eventual blacklisted characters. Blacklist can be null.
+        /// </summary>
+        /// <param name="array"></param>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="blacklist"></param>
+        public void PrintArray(string[] array, int x, int y, List<char> blacklist, ConsoleColor color)
+        {
+            Console.ForegroundColor = color;
+
+            if (color == ConsoleColor.Black)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                Console.SetCursorPosition(x, y + i);
+
+                for (int j = 0; j < array[i].Length; j++)
+                {
+                    if (blacklist != null && blacklist.Contains(array[i][j]))
+                    {
+                        // If we need to skip this, we'll increment the cursor position manually by 1
+                        var pos = Console.GetCursorPosition();
+
+                        Console.SetCursorPosition(pos.Left + 1, pos.Top);
+
+                    }
+                    else
+                    {
+                        Console.Write(array[i][j]);
+                    }
+                }
+            }
+
+            Console.ForegroundColor = ConsoleColor.Gray;
         }
 
         /// <summary>
